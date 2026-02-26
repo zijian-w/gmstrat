@@ -9,7 +9,9 @@ from tqdm.auto import tqdm
 from utils import str_to_vec
 
 
-def get_cluster_from_linkage(k: int, linkage: np.ndarray) -> Tuple[Dict[int, List[int]], np.ndarray]:
+def get_cluster_from_linkage(
+    k: int, linkage: np.ndarray
+) -> Tuple[Dict[int, List[int]], np.ndarray]:
     num_vertices = len(linkage) + 1
     membership = {i: [i] for i in range(num_vertices)}
 
@@ -27,6 +29,7 @@ def get_cluster_from_linkage(k: int, linkage: np.ndarray) -> Tuple[Dict[int, Lis
             i2c[member] = cluster_id
     return c2i, i2c
 
+
 class HClusters:
     def __init__(self, sp):
         self.sp = sp
@@ -34,14 +37,16 @@ class HClusters:
         self.num_vertices = len(self.linkage) + 1
         self.centroids: List[np.ndarray] = []
         self.cluster_densities: np.ndarray | None = None
-    
+
     def update_clusters(self, num_clusters: int, update_centroids: bool = True) -> None:
         self.num_clusters = num_clusters
         self.c2i, self.i2c = get_cluster_from_linkage(self.num_clusters, self.linkage)
         if update_centroids:
             self.update_centroids()
-    
-    def kcentroids(self, convergence_thres: float = 0.01, max_iter: int = 50, verbose=True) -> None:
+
+    def kcentroids(
+        self, convergence_thres: float = 0.01, max_iter: int = 50, verbose=True
+    ) -> None:
         num_clusters = int(getattr(self, "num_clusters", 0))
         all_districts = self.sp.get_all_districts()
         prev_assignments = np.asarray(self.i2c, dtype=np.int32).copy()
@@ -70,7 +75,7 @@ class HClusters:
             if assignments_unchanged or (rel_improvement < convergence_thres):
                 break
             if verbose:
-                print(f'epoch {epoch}: rel_improvement = {rel_improvement}')
+                print(f"epoch {epoch}: rel_improvement = {rel_improvement}")
 
     def _build_c2i_from_assignments(
         self, assignments: np.ndarray, num_clusters: int
@@ -96,7 +101,9 @@ class HClusters:
             else int(np.int64(self.sp.maximum_distance))
         )
 
-        centroid_members = np.zeros((num_clusters, self.sp.num_precincts), dtype=np.bool_)
+        centroid_members = np.zeros(
+            (num_clusters, self.sp.num_precincts), dtype=np.bool_
+        )
         centroid_weight_sum = np.zeros(num_clusters, dtype=np.int64)
         for cluster_id, centroid in enumerate(centroids):
             idx = np.asarray(centroid, dtype=np.intp)
@@ -145,7 +152,9 @@ class HClusters:
             else int(np.int64(self.sp.maximum_distance))
         )
 
-        centroid_members = np.zeros((num_clusters, self.sp.num_precincts), dtype=np.bool_)
+        centroid_members = np.zeros(
+            (num_clusters, self.sp.num_precincts), dtype=np.bool_
+        )
         centroid_weight_sum = np.zeros(num_clusters, dtype=np.int64)
         for cluster_id, centroid in enumerate(self.centroids):
             idx = np.asarray(centroid, dtype=np.intp)

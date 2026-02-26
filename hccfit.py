@@ -6,14 +6,14 @@ import random
 import time
 from tqdm import tqdm
 
-class HccLinkage():
 
-    def __init__(self, d, alt = False, rand = False, tol = 1e-5):
+class HccLinkage:
+    def __init__(self, d, alt=False, rand=False, tol=1e-5):
         self.d = d
         self.n = self.d.shape[0]
         self.alt = alt
         self.tol = tol
-        self.nextroots = list(range(self.n,2*self.n))
+        self.nextroots = list(range(self.n, 2 * self.n))
         self.nextroots.reverse()
         self.d_U = np.zeros((self.n, self.n))
         self.A = np.zeros((self.n, self.n))
@@ -31,18 +31,17 @@ class HccLinkage():
         self.elapse_sort = 0.0
         self.elapse_fit = 0.0
 
-    
-    def get_edge_seq(self, d, n, rand = False):
+    def get_edge_seq(self, d, n, rand=False):
         entries = []
         edges = []
         for i in range(n):
             for j in range(i):
-                entries.append((i, j, d[i,j]))
+                entries.append((i, j, d[i, j]))
         if rand:
             random.shuffle(entries)
-        entries.sort(key = lambda e: e[2])
+        entries.sort(key=lambda e: e[2])
         for e in entries:
-            edges.append((e[0],e[1]))
+            edges.append((e[0], e[1]))
         return edges
 
     def update_matrices(self, i, j):
@@ -78,11 +77,11 @@ class HccLinkage():
         self.M[r, :] = self.M[k, :] + self.M[l, :]
         for x in X:
             for y in Y:
-                self.d_U[x,y] = distance
-                self.d_U[y,x] = distance
+                self.d_U[x, y] = distance
+                self.d_U[y, x] = distance
         self.G.add_node(r)
-        self.G.add_edge(r, k, length = distance - self.heights[k])
-        self.G.add_edge(r, l, length = distance - self.heights[l])
+        self.G.add_edge(r, k, length=distance - self.heights[k])
+        self.G.add_edge(r, l, length=distance - self.heights[l])
         self.heights[r] = distance
         self.Z[r - self.n] = np.array([k, l, distance, new_size])
         for x in X:
@@ -92,19 +91,18 @@ class HccLinkage():
         if self.debug:
             print(X, Y, distance)
 
-
     def learn_UM(self):
         start = time.time()
         E = self.get_edge_seq(self.d, self.n)
         end = time.time()
         self.elapse_sort = end - start
         t = 0
-        while(len(self.nextroots) > 1):
+        while len(self.nextroots) > 1:
             i, j = E[t][0], E[t][1]
             self.update_matrices(i, j)
             k, l = self.membership[i], self.membership[j]
-            if(k != l and self.M[k,l] + self.M[l,k] == self.S[k] + self.S[l]):
-                self.merge_clusters(k, l, self.d[i,j])
+            if k != l and self.M[k, l] + self.M[l, k] == self.S[k] + self.S[l]:
+                self.merge_clusters(k, l, self.d[i, j])
             t += 1
         self.fitted = True
         end = time.time()

@@ -9,6 +9,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib import colors as mcolors
 
+
 def read_json(fn):
     with open(fn, "r") as f:
         return json.load(f)
@@ -24,7 +25,9 @@ def str_to_vec(s):
     return np.array(s.split("."), dtype=np.int32)
 
 
-def weighted_l1(v1, v2, weight, maximum_distance=np.iinfo(np.int32).max, *, sparse: bool):
+def weighted_l1(
+    v1, v2, weight, maximum_distance=np.iinfo(np.int32).max, *, sparse: bool
+):
     if sparse:
         w = np.asarray(weight)
         diff = np.setxor1d(np.asarray(v1, dtype=np.intp), np.asarray(v2, dtype=np.intp))
@@ -45,13 +48,14 @@ def weighted_l1(v1, v2, weight, maximum_distance=np.iinfo(np.int32).max, *, spar
 def plot_plan(gdf, labels, ax=None, cmap="tab20"):
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 8))
-    gdf.assign(cluster=labels).plot(column="cluster", cmap=cmap, ax=ax, edgecolor="black", linewidth=0.2)
+    gdf.assign(cluster=labels).plot(
+        column="cluster", cmap=cmap, ax=ax, edgecolor="black", linewidth=0.2
+    )
     ax.axis("off")
     return ax
 
 
 def plot_district(gdf, mask, ax=None, color="red"):
-
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 8))
     mask_arr = np.asarray(mask)
@@ -105,7 +109,6 @@ def plot_words_list(
     figsize=(10, 4),
     show_colorbar=True,
 ):
-
     word = np.asarray(word, dtype=np.int32)
     cluster_densities = np.asarray(cluster_densities, dtype=float)
     n_letters = int(len(word))
@@ -171,7 +174,6 @@ def plot_words_combined(
     ax=None,
     figsize=(8, 8),
 ):
-
     word = np.asarray(word, dtype=np.int32)
     cluster_densities = np.asarray(cluster_densities, dtype=float)
 
@@ -180,7 +182,9 @@ def plot_words_combined(
     else:
         fig = ax.figure
 
-    gdf.plot(ax=ax, color=base_color, edgecolor=edgecolor, linewidth=linewidth, alpha=0.3)
+    gdf.plot(
+        ax=ax, color=base_color, edgecolor=edgecolor, linewidth=linewidth, alpha=0.3
+    )
 
     if ltr and len(word) > 1:
         x_centers = gdf.geometry.centroid.x.to_numpy()
@@ -188,7 +192,9 @@ def plot_words_combined(
         for centroid_id in word.tolist():
             dens = cluster_densities[int(centroid_id)]
             total = float(dens.sum())
-            xs.append(float("inf") if total <= 0 else float(np.sum(x_centers * dens) / total))
+            xs.append(
+                float("inf") if total <= 0 else float(np.sum(x_centers * dens) / total)
+            )
         order = np.argsort(np.asarray(xs, dtype=float), kind="mergesort")
         word = word[order]
 
@@ -228,7 +234,6 @@ def plot_words_centroids(
     ax=None,
     figsize=(8, 8),
 ):
-
     word_arr = np.asarray(word, dtype=np.int32)
     cluster_densities = np.asarray(cluster_densities, dtype=float)
 
@@ -284,7 +289,9 @@ def plot_words_centroids(
 
     gdf.plot(ax=ax, color=rgba, edgecolor=edgecolor, linewidth=linewidth)
     if np.any(overlap):
-        gdf[overlap].boundary.plot(ax=ax, color=overlap_edgecolor, linewidth=overlap_linewidth)
+        gdf[overlap].boundary.plot(
+            ax=ax, color=overlap_edgecolor, linewidth=overlap_linewidth
+        )
 
     ax.axis("off")
     return fig, ax

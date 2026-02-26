@@ -64,7 +64,9 @@ class SampleProcessor:
         self.df_precincts = df_precincts
         self.num_precincts = len(df_precincts)
 
-        self.population = np.asarray(df_precincts["population"].to_numpy(), dtype=np.int32)
+        self.population = np.asarray(
+            df_precincts["population"].to_numpy(), dtype=np.int32
+        )
         self.total_pop = int(self.population.sum(dtype=np.int64))
         precinct_keys = df_precincts["precinct_id_str"].astype(str).to_list()
         self.prec_to_idx = {key: idx for idx, key in enumerate(precinct_keys)}
@@ -113,7 +115,9 @@ class SampleProcessor:
         df_samples = self._read_samples(samples_fns, max_length, min_step)
         df_samples_expanded = self._expand_samples(df_samples)
         df_districts = self._build_district_catalog(df_samples_expanded)
-        df_samples_expanded = self._attach_district_ids(df_samples_expanded, df_districts)
+        df_samples_expanded = self._attach_district_ids(
+            df_samples_expanded, df_districts
+        )
         df_plans = self._summarize_plans(df_samples_expanded)
         df_distributions = self._calculate_distributions(df_plans)
 
@@ -133,7 +137,9 @@ class SampleProcessor:
         np.save(self.paths.pdist_edges, self.pdist_edges, allow_pickle=False)
         self.all_districts = None
 
-    def _read_samples(self, samples_fns: Iterable[Path | str], max_length: int, min_step: int):
+    def _read_samples(
+        self, samples_fns: Iterable[Path | str], max_length: int, min_step: int
+    ):
         records = []
         for fn in samples_fns:
             path = Path(fn)
@@ -141,7 +147,9 @@ class SampleProcessor:
             sample_tag = path.stem.split(".")[0]
             file_count = 0
             with _open_sample_file(path) as handle:
-                with tqdm(total=max_length, desc=f"{sample_tag}", unit="samples") as pbar:
+                with tqdm(
+                    total=max_length, desc=f"{sample_tag}", unit="samples"
+                ) as pbar:
                     for line_idx, line in enumerate(handle):
                         if file_count >= max_length:
                             break
@@ -151,7 +159,9 @@ class SampleProcessor:
                                 self.num_districts = int(header["districts"])
                                 if not self._maximum_distance_manual:
                                     self.maximum_distance = min(
-                                        int((self.total_pop / self.num_districts) * 2.0),
+                                        int(
+                                            (self.total_pop / self.num_districts) * 2.0
+                                        ),
                                         int(np.iinfo(np.int32).max),
                                     )
                         if line_idx < 3:
@@ -162,7 +172,11 @@ class SampleProcessor:
                             continue
                         plan_vector = self._parse_plan_vector(data["districting"]) - 1
                         records.append(
-                            {"step": step, "plan_vector": plan_vector, "sample_tag": sample_tag}
+                            {
+                                "step": step,
+                                "plan_vector": plan_vector,
+                                "sample_tag": sample_tag,
+                            }
                         )
                         file_count += 1
                         pbar.update(1)
@@ -183,7 +197,9 @@ class SampleProcessor:
 
     def _expand_samples(self, df_samples: pd.DataFrame) -> pd.DataFrame:
         expanded_rows = []
-        for plan_id, row in tqdm(df_samples.iterrows(), total=len(df_samples), desc="plans"):
+        for plan_id, row in tqdm(
+            df_samples.iterrows(), total=len(df_samples), desc="plans"
+        ):
             pvec = row.plan_vector
             for district_id in range(self.num_districts):
                 dvec = np.where(pvec == district_id)[0]
@@ -198,35 +214,50 @@ class SampleProcessor:
                 )
         return pd.DataFrame.from_records(expanded_rows)
 
-    def _build_district_catalog(self, df_samples_expanded: pd.DataFrame) -> pd.DataFrame:
-        df_samples_expanded["district_str"] = df_samples_expanded.district_vector.apply(vec_to_str)
-        df_districts = (
-            df_samples_expanded.drop_duplicates(subset=["district_str"])[["district_str"]]
-            .reset_index(drop=True)
+    def _build_district_catalog(
+        self, df_samples_expanded: pd.DataFrame
+    ) -> pd.DataFrame:
+        df_samples_expanded["district_str"] = df_samples_expanded.district_vector.apply(
+            vec_to_str
         )
+        df_districts = df_samples_expanded.drop_duplicates(subset=["district_str"])[
+            ["district_str"]
+        ].reset_index(drop=True)
         df_districts["district_uid"] = df_districts.index
         return df_districts
 
-    def _attach_district_ids(self, df_samples_expanded: pd.DataFrame, df_districts: pd.DataFrame):
+    def _attach_district_ids(
+        self, df_samples_expanded: pd.DataFrame, df_districts: pd.DataFrame
+    ):
         district_map = dict(zip(df_districts.district_str, df_districts.district_uid))
         df_samples_expanded = df_samples_expanded.copy()
-        df_samples_expanded["district_uid"] = df_samples_expanded.district_str.map(district_map)
+        df_samples_expanded["district_uid"] = df_samples_expanded.district_str.map(
+            district_map
+        )
         return df_samples_expanded
 
     def _summarize_plans(self, df_samples_expanded: pd.DataFrame) -> pd.DataFrame:
         df_plans = (
-            df_samples_expanded.groupby(["step", "plan_id", "sample_tag"])["district_uid"]
+            df_samples_expanded.groupby(["step", "plan_id", "sample_tag"])[
+                "district_uid"
+            ]
             .apply(list)
             .reset_index(name="plan")
         )
-        df_plans["plan_str"] = df_plans.plan.apply(lambda x: ".".join([str(i) for i in sorted(x)]))
+        df_plans["plan_str"] = df_plans.plan.apply(
+            lambda x: ".".join([str(i) for i in sorted(x)])
+        )
         return df_plans
 
     def _calculate_distributions(self, df_plans: pd.DataFrame) -> pd.DataFrame:
-        df_distributions = df_plans.groupby(["sample_tag", "plan_str"]).size().reset_index(name="count")
-        df_distributions["freq"] = df_distributions.groupby("sample_tag")["count"].transform(
-            lambda x: x / x.sum()
+        df_distributions = (
+            df_plans.groupby(["sample_tag", "plan_str"])
+            .size()
+            .reset_index(name="count")
         )
+        df_distributions["freq"] = df_distributions.groupby("sample_tag")[
+            "count"
+        ].transform(lambda x: x / x.sum())
         df_distributions["plan_vector"] = df_distributions.plan_str.apply(str_to_vec)
         return df_distributions
 
@@ -234,7 +265,9 @@ class SampleProcessor:
         path.parent.mkdir(parents=True, exist_ok=True)
         df.to_feather(path)
 
-    def _compute_pdist_edges(self, n_samples: int = 500, n_bins: int = 400) -> np.ndarray:
+    def _compute_pdist_edges(
+        self, n_samples: int = 500, n_bins: int = 400
+    ) -> np.ndarray:
         df = self.df_districts
         n = min(int(n_samples), int(len(df)))
         sampled = df.sample(n=n, random_state=0)
@@ -288,13 +321,17 @@ class SampleProcessor:
 
     def get_all_districts(self):
         if self.all_districts is None:
-            self.all_districts = self.df_districts.district_str.apply(str_to_vec).to_list()
+            self.all_districts = self.df_districts.district_str.apply(
+                str_to_vec
+            ).to_list()
         return self.all_districts
 
     def encode_district(self, district):
-        return self.df_districts[self.df_districts.district_str == vec_to_str(district)].iloc[
-            0
-        ].district_uid
+        return (
+            self.df_districts[self.df_districts.district_str == vec_to_str(district)]
+            .iloc[0]
+            .district_uid
+        )
 
     def decode_district(self, district_uid):
         return self.get_all_districts()[district_uid]

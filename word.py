@@ -14,6 +14,7 @@ WordCandidate = Tuple[float, List[int]]
 LetterCandidate = Tuple[float, int]
 CentroidNorm = Literal["l1", "l2"]
 
+
 def merge_words(
     word_arr: Sequence[WordCandidate],
     letter_arr: Sequence[LetterCandidate],
@@ -86,7 +87,9 @@ class PlanWordBuilder:
         self.word_degree = word_degree
         self.verbose = verbose
         self.centroid_norm = centroid_norm
-        self.letter_subset = None if letter_subset is None else [int(x) for x in letter_subset]
+        self.letter_subset = (
+            None if letter_subset is None else [int(x) for x in letter_subset]
+        )
         self.dedupe = bool(dedupe)
         self.max_distance = None if max_distance is None else float(max_distance)
 
@@ -124,7 +127,11 @@ class PlanWordBuilder:
         densities = densities[letter_ids]
 
         weights = np.asarray(self.sp.population, dtype=float)
-        max_dist = None if self.sp.maximum_distance is None else float(self.sp.maximum_distance)
+        max_dist = (
+            None
+            if self.sp.maximum_distance is None
+            else float(self.sp.maximum_distance)
+        )
 
         total_dw = densities @ weights
 
@@ -155,13 +162,13 @@ class PlanWordBuilder:
                 dist_vec = np.minimum(dist_vec, max_dist)
 
             entries: List[LetterCandidate] = [
-                (float(dist_vec[j]), int(letter_ids[j])) for j in range(dist_vec.shape[0])
+                (float(dist_vec[j]), int(letter_ids[j]))
+                for j in range(dist_vec.shape[0])
             ]
             entries.sort(key=lambda x: x[0])
             distances.append(entries)
 
         return distances
-
 
     def _district_to_centroid_distances(self) -> List[List[LetterCandidate]]:
         centroids = self.clusters.centroids
@@ -170,10 +177,14 @@ class PlanWordBuilder:
         distances: List[List[LetterCandidate]] = []
 
         weights = np.asarray(self.sp.population, dtype=np.int64)
-        max_dist = None if self.sp.maximum_distance is None else int(self.sp.maximum_distance)
+        max_dist = (
+            None if self.sp.maximum_distance is None else int(self.sp.maximum_distance)
+        )
 
         num_centroids = int(letter_ids.size)
-        centroid_members = np.zeros((num_centroids, self.sp.num_precincts), dtype=np.bool_)
+        centroid_members = np.zeros(
+            (num_centroids, self.sp.num_precincts), dtype=np.bool_
+        )
         centroid_weight_sum = np.zeros(num_centroids, dtype=np.int64)
         for row_idx, centroid_id in enumerate(letter_ids.tolist()):
             idx = np.asarray(centroids[int(centroid_id)], dtype=np.intp)
@@ -228,7 +239,8 @@ class PlanWordBuilder:
 
         for row in plan_iter:
             letters = [
-                district_cluster_distances[district_uid] for district_uid in row.plan_vector
+                district_cluster_distances[district_uid]
+                for district_uid in row.plan_vector
             ]
             word_candidates = nearest_words(
                 letters,
@@ -282,7 +294,9 @@ class WordStat:
 
     def _prepare_plan_metadata(self) -> None:
         if "plan_uid" not in self.df_plans.columns:
-            self.df_plans = self.df_plans.reset_index().rename(columns={"index": "plan_uid"})
+            self.df_plans = self.df_plans.reset_index().rename(
+                columns={"index": "plan_uid"}
+            )
         self.plan_freq = dict(zip(self.df_plans.plan_uid, self.df_plans.freq))
 
     def compute_weights(self) -> pd.DataFrame:
