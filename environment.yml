@@ -1,0 +1,15 @@
+name: gmstrat
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - pandas
+  - scipy
+  - tqdm
+  - networkx
+  - matplotlib
+  - geopandas
+  - pyarrow
+  - pytest
+  - jupyterlab
