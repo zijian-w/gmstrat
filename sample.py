@@ -56,7 +56,7 @@ def _open_sample_file(filename, mode="rt"):
 
 
 class SampleProcessor:
-    def __init__(self, precinct_fn, save_dir, maximum_distance: int | None = None):
+    def __init__(self, precinct_fn, save_dir):
         precinct_data = read_json(precinct_fn)
         self.num_districts = int(precinct_data["num_districts"])
 
@@ -67,14 +67,11 @@ class SampleProcessor:
         self.population = np.asarray(
             df_precincts["population"].to_numpy(), dtype=np.int32
         )
-        self.total_pop = int(self.population.sum(dtype=np.int64))
+        self.total_pop = int(self.population.sum(dtype=np.int32))
         precinct_keys = df_precincts["precinct_id_str"].astype(str).to_list()
         self.prec_to_idx = {key: idx for idx, key in enumerate(precinct_keys)}
 
-        self._maximum_distance_manual = maximum_distance is not None
-        if maximum_distance is None:
-            maximum_distance = int((self.total_pop / self.num_districts) * 2.0)
-        self.maximum_distance = min(int(maximum_distance), int(np.iinfo(np.int32).max))
+        self.maximum_distance = int((self.total_pop * 2) // self.num_districts)
 
         self.paths = SampleStoragePaths(root=Path(save_dir))
         self.paths.root.mkdir(parents=True, exist_ok=True)
@@ -91,11 +88,7 @@ class SampleProcessor:
         self.df_samples = pd.read_feather(self.paths.samples)
         self.df_distributions = pd.read_feather(self.paths.distributions)
         self.num_districts = len(self.df_plans.plan.iloc[0])
-        if not self._maximum_distance_manual:
-            self.maximum_distance = min(
-                int((self.total_pop / self.num_districts) * 2.0),
-                int(np.iinfo(np.int32).max),
-            )
+        self.maximum_distance = int((self.total_pop * 2) // self.num_districts)
         try:
             self.pdist_edges = np.load(self.paths.pdist_edges, allow_pickle=False)
         except FileNotFoundError:
@@ -157,13 +150,9 @@ class SampleProcessor:
                             header = json.loads(line)
                             if isinstance(header, dict) and "districts" in header:
                                 self.num_districts = int(header["districts"])
-                                if not self._maximum_distance_manual:
-                                    self.maximum_distance = min(
-                                        int(
-                                            (self.total_pop / self.num_districts) * 2.0
-                                        ),
-                                        int(np.iinfo(np.int32).max),
-                                    )
+                                self.maximum_distance = int(
+                                    (self.total_pop * 2) // self.num_districts
+                                )
                         if line_idx < 3:
                             continue
                         data = json.loads(line)
@@ -280,14 +269,14 @@ class SampleProcessor:
                 if d < self.maximum_distance:
                     dist_list.append(d)
 
-        right_edge = min(self.maximum_distance + 1, int(np.iinfo(np.int32).max))
+        right_edge = self.maximum_distance + 1
         _, edges = pd.qcut(
             dist_list + [-1, right_edge],
             q=int(n_bins),
             retbins=True,
             duplicates="drop",
         )
-        return np.unique(np.asarray(edges, dtype=np.int64).astype(np.int32))
+        return np.unique(np.asarray(edges, dtype=np.int32))
 
     def compute_distance(self, x, y):
         return weighted_l1(x, y, self.population, self.maximum_distance, sparse=True)
@@ -317,7 +306,7 @@ class SampleProcessor:
         distance_matrix = self.load_distance_matrix()
         hcc = HccLinkage(distance_matrix)
         hcc.learn_UM()
-        np.save(self.paths.linkage, hcc.Z.astype(int))
+        np.save(self.paths.linkage, hcc.Z.astype(np.int32))
 
     def get_all_districts(self):
         if self.all_districts is None:
