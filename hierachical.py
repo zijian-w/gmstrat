@@ -44,6 +44,20 @@ class HClusters:
         if update_centroids:
             self.update_centroids()
 
+    def merge_from_k(self, k: int) -> Tuple[List[int], List[int], List[int]]:
+        merge_idx = self.num_vertices - k
+        membership = {i: [i] for i in range(self.num_vertices)}
+
+        for idx, merge in enumerate(self.linkage[:, :2]):
+            left_id, right_id = int(merge[0]), int(merge[1])
+            if idx == merge_idx:
+                left = list(membership[left_id])
+                right = list(membership[right_id])
+                return left, right, left + right
+            membership[idx + self.num_vertices] = membership.pop(
+                left_id
+            ) + membership.pop(right_id)
+
     def kcentroids(
         self, convergence_thres: float = 0.01, max_iter: int = 50, verbose=True
     ) -> None:
