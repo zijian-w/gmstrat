@@ -399,6 +399,118 @@ class PlanWordBuilder:
         return df_words
 
 
+@dataclass
+class FixedWordStats:
+    word_uids: np.ndarray
+    word_strs: np.ndarray
+    stationary: dict[float, np.ndarray]
+    flux: dict[float, np.ndarray]
+    covered_mass: float
+    covered_plans: int
+
+
+def compute_fixed_word_stats(
+    sp,
+    clusters,
+    fixed_words: pd.DataFrame,
+    word_degree: int,
+    temperatures: Sequence[float],
+    *,
+    total_population: float,
+    verbose: bool = True,
+    centroid_norm: CentroidNorm = "l1",
+) -> FixedWordStats:
+    catalog = (
+        fixed_words[["word_uid", "word_str"]]
+        .drop_duplicates("word_uid")
+        .sort_values("word_uid")
+        .reset_index(drop=True)
+    )
+    word_uids = catalog.word_uid.to_numpy(dtype=np.int32)
+    word_strs = catalog.word_str.astype(str).to_numpy(dtype=str)
+    word_positions = {
+        tuple(str_to_vec(word_str).tolist()): position
+        for position, word_str in enumerate(word_strs)
+    }
+    temperatures = [float(temperature) for temperature in temperatures]
+    stationary = {
+        temperature: np.zeros(len(catalog), dtype=float) for temperature in temperatures
+    }
+    overlap = {
+        temperature: np.zeros((len(catalog), len(catalog)), dtype=float)
+        for temperature in temperatures
+    }
+
+    builder = PlanWordBuilder(
+        sp,
+        clusters,
+        word_degree=word_degree,
+        verbose=verbose,
+        centroid_norm=centroid_norm,
+    )
+    df_plans = builder._prepare_plans()
+    if centroid_norm == "l2":
+        district_distances = builder._district_to_density_distances()
+    else:
+        district_distances = builder._district_to_centroid_distances()
+
+    covered_mass = 0.0
+    covered_plans = 0
+    plan_iter = df_plans.itertuples()
+    if verbose:
+        plan_iter = tqdm(
+            plan_iter,
+            total=len(df_plans),
+            desc="Accumulating fixed-word statistics",
+        )
+
+    for plan in plan_iter:
+        candidates = nearest_words(
+            [district_distances[district_uid] for district_uid in plan.plan_vector],
+            word_degree,
+            sort_word=True,
+        )
+        hits: dict[int, float] = {}
+        for distance, word in candidates:
+            position = word_positions.get(tuple(word))
+            if position is not None and position not in hits:
+                hits[position] = float(distance)
+        if not hits:
+            continue
+
+        positions = np.fromiter(hits, dtype=np.int32)
+        distances = np.fromiter(hits.values(), dtype=float)
+        frequency = float(plan.freq)
+        covered_mass += frequency
+        covered_plans += 1
+
+        for temperature in temperatures:
+            phi = np.exp(-temperature * distances / float(total_population))
+            phi /= phi.sum()
+            stationary[temperature][positions] += frequency * phi
+            overlap[temperature][np.ix_(positions, positions)] += frequency * np.outer(
+                phi, phi
+            )
+
+    flux: dict[float, np.ndarray] = {}
+    for temperature in temperatures:
+        matrix = np.zeros_like(overlap[temperature])
+        active = stationary[temperature] > 0
+        matrix[active] = (
+            overlap[temperature][active] / stationary[temperature][active, None]
+        )
+        flux[temperature] = matrix
+
+    return FixedWordStats(
+        word_uids=word_uids,
+        word_strs=word_strs,
+        stationary=stationary,
+        flux=flux,
+        covered_mass=covered_mass,
+        covered_plans=covered_plans,
+    )
+
+
 class WordStat:
     def __init__(
         self,
