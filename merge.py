@@ -37,7 +37,7 @@ def plot_merges(sp, hc, gdf, k_values=(33, 34, 35)):
                 "k": k,
                 "left_size": len(left),
                 "right_size": len(right),
-                "improvement": wcss[2] - wcss[0] - wcss[1],
+                "improvement": np.log10(wcss[2] - wcss[0] - wcss[1]),
                 "maps": maps,
             }
         )
