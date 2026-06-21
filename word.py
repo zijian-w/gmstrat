@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import heapq
+import itertools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Literal, Sequence, Tuple
@@ -14,6 +15,63 @@ from utils import str_to_vec, vec_to_str
 WordCandidate = Tuple[float, List[int]]
 LetterCandidate = Tuple[float, int]
 CentroidNorm = Literal["l1", "l2"]
+
+
+def plan_word_distances(sp, clusters, plan_labels, df_words) -> pd.DataFrame:
+    plan_labels = np.asarray(plan_labels)
+    district_labels = np.sort(np.unique(plan_labels))
+    districts = [
+        np.flatnonzero(plan_labels == label).astype(np.int32)
+        for label in district_labels
+    ]
+
+    weights = np.asarray(sp.population, dtype=np.int64)
+    centroids = clusters.centroids
+    centroid_members = np.zeros(
+        (len(centroids), sp.num_precincts),
+        dtype=bool,
+    )
+    centroid_weight = np.zeros(len(centroids), dtype=np.int64)
+
+    for letter_id, centroid in enumerate(centroids):
+        indices = np.asarray(centroid, dtype=np.intp)
+        centroid_members[letter_id, indices] = True
+        centroid_weight[letter_id] = weights[indices].sum(dtype=np.int64)
+
+    letter_distances = np.zeros(
+        (len(districts), len(centroids)),
+        dtype=np.int64,
+    )
+    for district_id, district in enumerate(districts):
+        district_weight = weights[district]
+        population = district_weight.sum(dtype=np.int64)
+        intersection = centroid_members[:, district] @ district_weight
+        letter_distances[district_id] = np.minimum(
+            population + centroid_weight - 2 * intersection,
+            sp.maximum_distance,
+        )
+
+    table = (
+        df_words[["word_uid", "word_str"]]
+        .drop_duplicates("word_uid")
+        .sort_values("word_uid")
+        .reset_index(drop=True)
+    )
+    words = np.vstack([str_to_vec(word_str) for word_str in table.word_str.astype(str)])
+    distances = np.full(len(words), np.iinfo(np.int64).max, dtype=np.int64)
+
+    for permutation in itertools.permutations(range(len(districts))):
+        candidate = np.zeros(len(words), dtype=np.int64)
+        for district_id, word_position in enumerate(permutation):
+            candidate += letter_distances[
+                district_id,
+                words[:, word_position],
+            ]
+        distances = np.minimum(distances, candidate)
+
+    table["word"] = [word for word in words]
+    table["distance"] = distances
+    return table.sort_values("distance", kind="stable").reset_index(drop=True)
 
 
 def merge_words(
