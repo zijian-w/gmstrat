@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Literal, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
-from utils import vec_to_str
+from utils import str_to_vec, vec_to_str
 
 WordCandidate = Tuple[float, List[int]]
 LetterCandidate = Tuple[float, int]
@@ -67,6 +68,68 @@ class PlanWordResult:
     df_plans: pd.DataFrame
     df_words: pd.DataFrame
     district_cluster_distances: List[List[LetterCandidate]]
+
+    def save_artifact(self, directory) -> None:
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        plans = np.vstack(
+            self.df_plans.sort_values("plan_uid")["plan_vector"].to_list()
+        ).astype(np.int32, copy=False)
+        np.save(directory / "plans.npy", plans, allow_pickle=False)
+
+        self.df_plans.drop(columns=["plan_vector"], errors="ignore").to_feather(
+            directory / "df_plans.feather"
+        )
+
+        df_words = self.df_words
+        if "word_str" not in df_words:
+            df_words = df_words.copy()
+            df_words["word_str"] = df_words["word"].map(vec_to_str)
+        if "word_uid" not in df_words:
+            if df_words is self.df_words:
+                df_words = df_words.copy()
+            df_words["word_uid"] = df_words["word_str"].astype("category").cat.codes
+        df_words[
+            ["plan_uid", "word_uid", "word_str", "distance", "min_distance"]
+        ].to_feather(directory / "df_words.feather")
+
+        if self.district_cluster_distances:
+            shape = (
+                len(self.district_cluster_distances),
+                len(self.district_cluster_distances[0]),
+            )
+            distances = np.lib.format.open_memmap(
+                directory / "district_letter_distances.npy",
+                mode="w+",
+                dtype=float,
+                shape=shape,
+            )
+            letter_ids = np.lib.format.open_memmap(
+                directory / "district_letter_ids.npy",
+                mode="w+",
+                dtype=np.int32,
+                shape=shape,
+            )
+            for row_idx, entries in enumerate(self.district_cluster_distances):
+                distances[row_idx] = [distance for distance, _ in entries]
+                letter_ids[row_idx] = [letter_id for _, letter_id in entries]
+            distances.flush()
+            letter_ids.flush()
+
+    @classmethod
+    def load_artifact(cls, directory) -> "PlanWordResult":
+        directory = Path(directory)
+        plans = np.load(directory / "plans.npy", allow_pickle=False)
+        df_plans = pd.read_feather(directory / "df_plans.feather")
+        df_plans = df_plans.sort_values("plan_uid").reset_index(drop=True)
+        df_plans["plan_vector"] = [row for row in plans]
+        df_words = pd.read_feather(directory / "df_words.feather")
+        return cls(
+            df_plans=df_plans,
+            df_words=df_words,
+            district_cluster_distances=[],
+        )
 
 
 class PlanWordBuilder:
@@ -319,11 +382,12 @@ class WordStat:
         df_words["phi_freq"] = df_words.phi_normalized * df_words.plan_freq
         if self._word_index is None:
             self._word_index = (
-                df_words[["word_uid", "word_str", "word"]]
+                df_words[["word_uid", "word_str"]]
                 .drop_duplicates(subset=["word_uid"])
                 .sort_values("word_uid")
                 .reset_index(drop=True)
             )
+            self._word_index["word"] = self._word_index["word_str"].map(str_to_vec)
         self._weights_computed = True
         return df_words
 
