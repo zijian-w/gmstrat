@@ -66,16 +66,21 @@ def greedy_two_stage_cover(core_covermat, broad_covermat) -> TwoStageCoverResult
     broad_covermat = _as_csc(broad_covermat)
     core = greedy_partial_cover(core_covermat)
 
+    broad_core_coverage = np.asarray(
+        broad_covermat[core.uncovered_nodes, :][:, core.selected_sets].getnnz(axis=1)
+    ).ravel()
+    repair_nodes = core.uncovered_nodes[broad_core_coverage == 0]
+
     candidate_sets = np.setdiff1d(
         np.arange(core_covermat.shape[1]),
         core.selected_sets,
     )
-    repair_covermat = broad_covermat[core.uncovered_nodes, :][:, candidate_sets]
+    repair_covermat = broad_covermat[repair_nodes, :][:, candidate_sets]
     repair = greedy_partial_cover(repair_covermat)
 
     return TwoStageCoverResult(
         core_sets=core.selected_sets,
         tail_sets=candidate_sets[repair.selected_sets],
         core_uncovered_nodes=core.uncovered_nodes,
-        tail_uncovered_nodes=core.uncovered_nodes[repair.uncovered_nodes],
+        tail_uncovered_nodes=repair_nodes[repair.uncovered_nodes],
     )

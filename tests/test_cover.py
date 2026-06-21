@@ -42,6 +42,6 @@ def test_greedy_two_stage_cover():
     result = greedy_two_stage_cover(core, broad)
     assert result.core_sets.tolist() == [0]
     assert result.core_uncovered_nodes.tolist() == [2, 3]
-    assert result.tail_sets.tolist() == [1, 4]
+    assert result.tail_sets.tolist() == [4]
     assert result.tail_uncovered_nodes.tolist() == []
-    assert result.selected_sets.tolist() == [0, 1, 4]
+    assert result.selected_sets.tolist() == [0, 4]
