@@ -76,7 +76,7 @@ def plot_merges(sp, hc, gdf, k_values=(33, 34, 35)):
                     -0.06,
                     0.5,
                     f"K={row['k']}\n|L|={row['left_size']}  |R|={row['right_size']}\n"
-                    f"Dispersion improvement={row['improvement']:.3g}",
+                    rf"$\log \Delta={row['improvement']:.3g}$",
                     transform=ax.transAxes,
                     rotation=90,
                     va="center",
