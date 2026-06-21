@@ -34,6 +34,7 @@ def test_plan_word_artifact_round_trip(tmp_path):
             "min_distance": [1.0, 1.0, 1.0],
         }
     )
+    df_words["word_str"] = df_words["word_str"].astype("category")
     district_cluster_distances = [
         [(1.0, 0), (2.0, 1)],
         [(0.5, 1), (1.5, 0)],

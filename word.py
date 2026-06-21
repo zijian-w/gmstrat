@@ -387,7 +387,10 @@ class WordStat:
                 .sort_values("word_uid")
                 .reset_index(drop=True)
             )
-            self._word_index["word"] = self._word_index["word_str"].map(str_to_vec)
+            self._word_index["word"] = [
+                str_to_vec(word_str)
+                for word_str in self._word_index["word_str"].astype(str)
+            ]
         self._weights_computed = True
         return df_words
 
