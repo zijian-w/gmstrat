@@ -55,6 +55,18 @@ def plot_plan(gdf, labels, ax=None, cmap="tab20"):
     return ax
 
 
+def ltr_sort(plan, gdf):
+    plan = np.asarray(plan)
+    x_centers = gdf.geometry.centroid.x.to_numpy()
+    district_ids = np.unique(plan)
+    ordered = sorted(
+        district_ids,
+        key=lambda district_id: x_centers[plan == district_id].mean(),
+    )
+    mapping = {district_id: index for index, district_id in enumerate(ordered)}
+    return np.array([mapping[district_id] for district_id in plan], dtype=np.int32)
+
+
 def plot_district(gdf, mask, ax=None, color="red"):
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 8))
