@@ -63,5 +63,23 @@ def test_plan_word_artifact_round_trip(tmp_path):
     ]
     assert loaded.district_cluster_distances == []
 
-    table = WordStat(loaded, temp=0.0, verbose=False).stationary_table()
+    table = WordStat(
+        loaded,
+        temp=0.0,
+        verbose=False,
+        total_population=4.0,
+    ).stationary_table()
     assert table.word.map(tuple).tolist() == [(0, 1), (0, 2)]
+
+    weights = WordStat(
+        loaded,
+        temp=2.0,
+        verbose=False,
+        total_population=4.0,
+    ).compute_weights()
+    expected = np.exp(-np.array([0.5, 1.0]))
+    expected /= expected.sum()
+    assert np.allclose(
+        weights.loc[weights.plan_uid == 0, "phi_normalized"],
+        expected,
+    )

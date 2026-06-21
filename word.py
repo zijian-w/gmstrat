@@ -400,12 +400,20 @@ class PlanWordBuilder:
 
 
 class WordStat:
-    def __init__(self, plan_word: PlanWordResult, temp: float, verbose: bool = True):
+    def __init__(
+        self,
+        plan_word: PlanWordResult,
+        temp: float,
+        verbose: bool = True,
+        *,
+        total_population: float,
+    ):
         self.plan_word = plan_word
         self.df_words = plan_word.df_words.copy()
         self.df_plans = plan_word.df_plans.copy()
         self.temp = temp
         self.verbose = verbose
+        self.total_population = total_population
 
         self._prepare_plan_metadata()
         self._word_index: pd.DataFrame | None = None
@@ -428,15 +436,10 @@ class WordStat:
         df_words["plan_uid"] = df_words.plan_uid.astype(int)
         df_words["plan_freq"] = df_words.plan_uid.map(self.plan_freq)
         distance = df_words.distance.to_numpy(dtype=float)
-        min_distance = df_words.min_distance.to_numpy(dtype=float)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ratio = distance / min_distance
-        ratio = np.where((min_distance == 0) & (distance == 0), 1.0, ratio)
-        ratio = np.where(np.isnan(ratio), 1.0, ratio)
-        df_words["phi"] = np.exp(-self.temp * (ratio - 1.0))
-        df_words["phi_normalized"] = df_words.groupby("plan_uid")["phi"].transform(
-            lambda x: x / x.sum()
-        )
+        df_words["normalized_distance"] = distance / self.total_population
+        df_words["phi"] = np.exp(-self.temp * df_words.normalized_distance)
+        denominator = df_words.groupby("plan_uid")["phi"].transform("sum")
+        df_words["phi_normalized"] = df_words.phi / denominator
         df_words["phi_freq"] = df_words.phi_normalized * df_words.plan_freq
         if self._word_index is None:
             self._word_index = (
