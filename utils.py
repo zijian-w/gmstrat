@@ -231,9 +231,44 @@ def plot_words_centroids(
     overlap_edgecolor="black",
     overlap_linewidth=1.2,
     ltr=False,
+    ncols=None,
+    subplot_size=(4, 4),
     ax=None,
     figsize=(8, 8),
 ):
+    if hasattr(word, "columns"):
+        n = len(word)
+        ncols = ncols or int(math.ceil(math.sqrt(n)))
+        nrows = int(math.ceil(n / ncols))
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(subplot_size[0] * ncols, subplot_size[1] * nrows),
+            squeeze=False,
+            constrained_layout=True,
+        )
+        for plot_ax, row in zip(axes.flat, word.itertuples(index=False)):
+            plot_words_centroids(
+                gdf,
+                cluster_densities,
+                row.word,
+                threshold=threshold,
+                cmap=cmap,
+                base_color=base_color,
+                base_alpha=base_alpha,
+                centroid_alpha=centroid_alpha,
+                edgecolor=edgecolor,
+                linewidth=linewidth,
+                overlap_edgecolor=overlap_edgecolor,
+                overlap_linewidth=overlap_linewidth,
+                ltr=ltr,
+                ax=plot_ax,
+            )
+            plot_ax.set_title(row.title)
+        for plot_ax in axes.flat[n:]:
+            plot_ax.axis("off")
+        return fig, axes
+
     word_arr = np.asarray(word, dtype=np.int32)
     cluster_densities = np.asarray(cluster_densities, dtype=float)
 
