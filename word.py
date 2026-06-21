@@ -404,6 +404,7 @@ class FixedWordStats:
     word_uids: np.ndarray
     word_strs: np.ndarray
     stationary: dict[float, np.ndarray]
+    overlap: dict[float, np.ndarray]
     flux: dict[float, np.ndarray]
     covered_mass: float
     covered_plans: int
@@ -419,6 +420,8 @@ def compute_fixed_word_stats(
     total_population: float,
     verbose: bool = True,
     centroid_norm: CentroidNorm = "l1",
+    plan_start: int = 0,
+    plan_stop: int | None = None,
 ) -> FixedWordStats:
     catalog = (
         fixed_words[["word_uid", "word_str"]]
@@ -448,7 +451,7 @@ def compute_fixed_word_stats(
         verbose=verbose,
         centroid_norm=centroid_norm,
     )
-    df_plans = builder._prepare_plans()
+    df_plans = builder._prepare_plans().iloc[plan_start:plan_stop]
     if centroid_norm == "l2":
         district_distances = builder._district_to_density_distances()
     else:
@@ -505,6 +508,7 @@ def compute_fixed_word_stats(
         word_uids=word_uids,
         word_strs=word_strs,
         stationary=stationary,
+        overlap=overlap,
         flux=flux,
         covered_mass=covered_mass,
         covered_plans=covered_plans,

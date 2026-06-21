@@ -85,5 +85,28 @@ def test_fixed_word_stats_matches_materialized_word_stat():
             materialized.flux_matrix(),
         )
 
+    chunks = [
+        compute_fixed_word_stats(
+            sp,
+            clusters,
+            fixed_words,
+            word_degree=16,
+            temperatures=[0, 2],
+            total_population=4,
+            verbose=False,
+            plan_start=start,
+            plan_stop=start + 1,
+        )
+        for start in range(2)
+    ]
+    for temperature in [0.0, 2.0]:
+        stationary = sum(chunk.stationary[temperature] for chunk in chunks)
+        overlap = sum(chunk.overlap[temperature] for chunk in chunks)
+        flux = np.zeros_like(overlap)
+        active = stationary > 0
+        flux[active] = overlap[active] / stationary[active, None]
+        assert np.allclose(stationary, streamed.stationary[temperature])
+        assert np.allclose(flux, streamed.flux[temperature])
+
     assert np.isclose(streamed.covered_mass, 1.0)
     assert streamed.covered_plans == 2
