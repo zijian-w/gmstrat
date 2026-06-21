@@ -472,7 +472,10 @@ class WordStat:
         df_words = self.compute_weights()
         plan_freq = self.plan_freq
 
-        num_words = df_words.word_uid.max() + 1
+        word_ids = (
+            self.word_metadata().sort_values("word_uid")["word_uid"].to_numpy(dtype=int)
+        )
+        num_words = len(word_ids)
         flux = np.zeros((num_words, num_words), dtype=float)
 
         phi_support = df_words.groupby("word_uid")["plan_uid"].apply(set)
@@ -483,13 +486,14 @@ class WordStat:
             )
         )
 
-        word_iter = range(num_words)
+        word_iter = enumerate(word_ids)
         if self.verbose:
             word_iter = tqdm(word_iter, total=num_words, desc="Computing flux")
 
-        for word1 in word_iter:
+        for word1_idx, word1 in word_iter:
             plans1 = phi_support[word1]
-            for word2 in range(word1 + 1):
+            for word2_idx in range(word1_idx + 1):
+                word2 = word_ids[word2_idx]
                 total = 0.0
                 shared = plans1.intersection(phi_support[word2])
                 for plan_uid in shared:
@@ -498,8 +502,8 @@ class WordStat:
                         * phi_lookup[(word2, plan_uid)]
                         * plan_freq[plan_uid]
                     )
-                flux[word1, word2] = total
-                flux[word2, word1] = total
+                flux[word1_idx, word2_idx] = total
+                flux[word2_idx, word1_idx] = total
 
         stationary = self.stationary_distribution()
         stationary_matrix = stationary.reshape(-1, 1)

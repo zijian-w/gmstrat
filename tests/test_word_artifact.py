@@ -83,3 +83,19 @@ def test_plan_word_artifact_round_trip(tmp_path):
         weights.loc[weights.plan_uid == 0, "phi_normalized"],
         expected,
     )
+
+    noncontiguous = PlanWordResult(
+        df_plans=loaded.df_plans,
+        df_words=loaded.df_words.assign(
+            word_uid=loaded.df_words.word_uid.replace({1: 3})
+        ),
+        district_cluster_distances=[],
+    )
+    flux = WordStat(
+        noncontiguous,
+        temp=2.0,
+        verbose=False,
+        total_population=4.0,
+    ).flux_matrix()
+    assert flux.shape == (2, 2)
+    assert np.allclose(flux.sum(axis=1), 1.0)
